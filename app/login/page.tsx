@@ -20,26 +20,28 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setLoading(true);
+ const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  event.preventDefault();
+  setLoading(true);
 
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+  const supabase = createClient();
+  const { error, data } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
 
-    if (error) {
-      toast.error(error.message || "Unable to sign in. Please try again.");
-      setLoading(false);
-      return;
-    }
+  if (error) {
+    toast.error(error.message || "Unable to sign in.");
+    setLoading(false);
+    return;
+  }
 
-    // This will now take her to the Home page where her "Recent Memories" are
-    router.replace(nextPath);
-    router.refresh();
-  };
+  if (data.user) {
+    toast.success("Welcome back!");
+    // Use window.location instead of router.replace for a cleaner session sync on Vercel
+    window.location.href = nextPath;
+  }
+};
 
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-12">
