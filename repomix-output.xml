@@ -1,0 +1,4234 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+.gitignore
+AGENTS.md
+app/about/page.tsx
+app/albums/[id]/page.tsx
+app/albums/page.tsx
+app/contact/page.tsx
+app/gallery/page.tsx
+app/globals.css
+app/layout.tsx
+app/loading.tsx
+app/login/page.tsx
+app/page.tsx
+app/settings/page.tsx
+app/signup/page.tsx
+app/upload/page.tsx
+CLAUDE.md
+components.json
+components/AlbumSelector.tsx
+components/BottomNav.tsx
+components/BottomNavWrapper.tsx
+components/ClientOnly.tsx
+components/EmptyStates.tsx
+components/GalleryGrid.tsx
+components/GallerySection.tsx
+components/GallerySkeleton.tsx
+components/PhotoDetailDialog.tsx
+components/PhotosPagination.tsx
+components/SearchBar.tsx
+components/ThemeProvider.tsx
+components/ui/button.tsx
+components/ui/checkbox.tsx
+components/ui/dialog.tsx
+components/ui/input.tsx
+components/ui/progress.tsx
+components/ui/skeleton.tsx
+components/ui/sonner.tsx
+components/ui/textarea.tsx
+components/ui/toast.tsx
+components/UploadEngine.tsx
+eslint.config.mjs
+lib/utils.ts
+middleware.ts
+next.config.ts
+package.json
+postcss.config.mjs
+public/file.svg
+public/globe.svg
+public/next.svg
+public/vercel.svg
+public/window.svg
+README.md
+store/useGalleryStore.ts
+supabase/migrations.sql
+tsconfig.json
+utils/albums.ts
+utils/audit.ts
+utils/supabase/client.ts
+utils/supabase/middleware.ts
+utils/supabase/server.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="app/about/page.tsx">
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "About - Yabsera's Gallery",
+  description: "Learn more about Yabsera's Gallery",
+};
+
+export default function AboutPage() {
+  return (
+    <main className="mx-auto w-full max-w-2xl py-12">
+      <article className="space-y-8">
+        <header className="text-center">
+          <p className="mb-3 text-sm font-medium uppercase tracking-widest text-rose-500">
+            The Story
+          </p>
+          <h1 className="text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 sm:text-5xl">
+            Behind the Lens
+          </h1>
+        </header>
+
+        <div className="prose prose-zinc mx-auto dark:prose-invert">
+          <p className="text-lg leading-relaxed text-zinc-600 dark:text-zinc-300">
+            This space was designed to preserve the beauty of your journey. In a world 
+            where moments pass in the blink of an eye, we believe your memories deserve 
+            a sanctuary—a place where they can be cherished, revisited, and protected.
+          </p>
+        </div>
+
+        <div className="relative aspect-[4/3] overflow-hidden rounded-2xl">
+          <div className="absolute inset-0 bg-gradient-to-br from-rose-100 to-rose-200 dark:from-rose-900/30 dark:to-zinc-800" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-rose-300/50 text-6xl font-light">✦</span>
+          </div>
+        </div>
+
+        <div className="prose prose-zinc mx-auto dark:prose-invert">
+          <p className="text-lg leading-relaxed text-zinc-600 dark:text-zinc-300">
+            Every photograph tells a story—of places seen, faces remembered, and emotions 
+            felt. This gallery is more than a collection of images; it&apos;s a living 
+            archive of your personal journey through time.
+          </p>
+          <p className="text-lg leading-relaxed text-zinc-600 dark:text-zinc-300">
+            We built this with privacy at its core. Your memories are yours alone, 
+            encrypted and safely stored, accessible only to you.
+          </p>
+        </div>
+
+        <div className="flex justify-center py-8">
+          <div className="h-px w-24 bg-gradient-to-r from-transparent via-rose-300 to-transparent" />
+        </div>
+
+        <p className="text-center text-sm text-zinc-400">
+          &mdash; Preserving moments, one frame at a time.
+        </p>
+      </article>
+    </main>
+  );
+}
+</file>
+
+<file path="app/albums/[id]/page.tsx">
+import { notFound } from "next/navigation";
+import { createClient, getPhotosWithSignedUrls } from "@/utils/supabase/server";
+import GalleryGrid, { type GalleryPhoto } from "@/components/GalleryGrid";
+import { SearchBar } from "@/components/SearchBar";
+import { PhotosPagination } from "@/components/PhotosPagination";
+
+interface PhotoRow {
+  id: string;
+  file_path: string;
+  created_at: string;
+  signedUrl: string | null;
+  camera?: string;
+  lens?: string;
+  iso?: number;
+  aperture?: string;
+  shutter_speed?: string;
+  focal_length?: string;
+  width?: number;
+  height?: number;
+  file_size?: number;
+  date_taken?: string;
+}
+
+export default async function AlbumDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ page?: string; search?: string }>;
+}) {
+  const { id: albumId } = await params;
+  const searchParamsResolved = await searchParams;
+  const page = parseInt(searchParamsResolved.page ?? "1", 10);
+  const search = searchParamsResolved.search ?? "";
+  const limit = 24;
+  const offset = (page - 1) * limit;
+
+  const supabase = await createClient();
+
+  // Get album info
+  const { data: album } = await supabase
+    .from("albums")
+    .select("id, name, description, cover_photo_id")
+    .eq("id", albumId)
+    .single();
+
+  if (!album) {
+    notFound();
+  }
+
+  // Get photos in album with signed URLs
+  const { data: photoData } = await supabase
+    .from("photo_albums")
+    .select("photo_id")
+    .eq("album_id", albumId);
+
+  const photoIds = (photoData ?? []).map((p) => p.photo_id);
+
+  if (photoIds.length === 0) {
+    return (
+      <main className="mx-auto w-full max-w-6xl py-6">
+        <div className="mb-4 space-y-1">
+          <p className="text-sm font-medium text-rose-500 dark:text-rose-300">Album</p>
+          <h1 className="text-2xl font-semibold tracking-tight">{album.name}</h1>
+          {album.description && (
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">{album.description}</p>
+          )}
+        </div>
+        <div className="rounded-2xl border border-rose-200/70 bg-white/70 px-4 py-12 text-center dark:border-zinc-800 dark:bg-zinc-900/60">
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">This album is empty. Add photos from the gallery.</p>
+        </div>
+      </main>
+    );
+  }
+
+  // Get photos with pagination
+  const { data: photosData } = await supabase
+    .from("photos")
+    .select("id, file_path, created_at, camera, lens, iso, aperture, shutter_speed, focal_length, width, height, file_size, date_taken")
+    .in("id", photoIds)
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (!photosData || photosData.length === 0) {
+    return (
+      <main className="mx-auto w-full max-w-6xl py-6">
+        <div className="mb-4 space-y-1">
+          <p className="text-sm font-medium text-rose-500 dark:text-rose-300">Album</p>
+          <h1 className="text-2xl font-semibold tracking-tight">{album.name}</h1>
+        </div>
+        <GalleryGrid photos={[]} />
+      </main>
+    );
+  }
+
+  const totalCount = photoIds.length;
+  const totalPages = Math.ceil(totalCount / limit);
+
+  // Get signed URLs
+  const photos = await getPhotosWithSignedUrls(supabase, {
+    limit: photosData.length,
+    offset: 0,
+  });
+
+  const galleryPhotos: GalleryPhoto[] = photos
+    .filter((p): p is PhotoRow & { signedUrl: string } => p.signedUrl !== null)
+    .map((photo) => ({
+      id: photo.id,
+      file_path: photo.file_path,
+      signedUrl: photo.signedUrl,
+      created_at: photo.created_at,
+      camera: photo.camera,
+      lens: photo.lens,
+      iso: photo.iso,
+      aperture: photo.aperture,
+      shutter_speed: photo.shutter_speed,
+      focal_length: photo.focal_length,
+      width: photo.width,
+      height: photo.height,
+      file_size: photo.file_size,
+      date_taken: photo.date_taken,
+    }));
+
+  return (
+    <main className="mx-auto w-full max-w-6xl py-6">
+      <div className="mb-4 space-y-1">
+        <p className="text-sm font-medium text-rose-500 dark:text-rose-300">Album</p>
+        <h1 className="text-2xl font-semibold tracking-tight">{album.name}</h1>
+        {album.description && (
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">{album.description}</p>
+        )}
+        <p className="text-xs text-zinc-400">{totalCount} photo{totalCount !== 1 ? "s" : ""}</p>
+      </div>
+      <SearchBar />
+      <GalleryGrid photos={galleryPhotos} albumId={albumId} />
+      {totalPages > 1 && (
+        <PhotosPagination
+          currentPage={page}
+          totalPages={totalPages}
+          search={search}
+        />
+      )}
+    </main>
+  );
+}
+</file>
+
+<file path="app/albums/page.tsx">
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { createClient } from "@/utils/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+import { Plus, FolderOpen, Trash2, ImageIcon } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
+
+interface Album {
+  id: string;
+  name: string;
+  description?: string;
+  cover_photo_id?: string;
+  created_at: string;
+}
+
+export default function AlbumsPage() {
+  const supabase = createClient();
+  const [albums, setAlbums] = useState<Album[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [newAlbumName, setNewAlbumName] = useState("");
+  const [newAlbumDesc, setNewAlbumDesc] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+
+  useEffect(() => {
+    fetchAlbums();
+  }, []);
+
+  async function fetchAlbums() {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("albums")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("updated_at", { ascending: false });
+
+      if (error) throw error;
+      setAlbums(data ?? []);
+    } catch (err) {
+      console.error("Failed to fetch albums:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleCreateAlbum(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newAlbumName.trim()) return;
+
+    setCreating(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { error } = await supabase
+        .from("albums")
+        .insert({
+          user_id: user.id,
+          name: newAlbumName.trim(),
+          description: newAlbumDesc.trim() || null,
+        });
+
+      if (error) throw error;
+
+      setNewAlbumName("");
+      setNewAlbumDesc("");
+      setDialogOpen(false);
+      fetchAlbums();
+      toast.success("Album created");
+    } catch (err) {
+      toast.error("Failed to create album");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function handleDeleteAlbum(id: string) {
+    try {
+      const { error } = await supabase.from("albums").delete().eq("id", id);
+      if (error) throw error;
+
+      setAlbums((prev) => prev.filter((a) => a.id !== id));
+      toast.success("Album deleted");
+    } catch (err) {
+      toast.error("Failed to delete album");
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex h-40 items-center justify-center">
+        <p className="text-sm text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Albums</h1>
+          <p className="text-sm text-muted-foreground">Organize your photos into collections</p>
+        </div>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm">
+              <Plus className="size-4 mr-1" />
+              New Album
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create Album</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleCreateAlbum} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Name</label>
+                <Input
+                  placeholder="Album name"
+                  value={newAlbumName}
+                  onChange={(e) => setNewAlbumName(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Description (optional)</label>
+                <Input
+                  placeholder="What's this album about?"
+                  value={newAlbumDesc}
+                  onChange={(e) => setNewAlbumDesc(e.target.value)}
+                />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={creating || !newAlbumName.trim()}>
+                  {creating ? "Creating..." : "Create"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {albums.length === 0 ? (
+        <div className="rounded-2xl border border-rose-200/70 bg-white/70 px-4 py-12 text-center dark:border-zinc-800 dark:bg-zinc-900/60">
+          <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-500/20">
+            <FolderOpen className="size-8 text-rose-500 dark:text-rose-300" />
+          </div>
+          <h3 className="mb-2 text-lg font-medium text-zinc-900 dark:text-zinc-100">
+            No albums yet
+          </h3>
+          <p className="mb-6 text-sm text-zinc-500 dark:text-zinc-400">
+            Create your first album to organize your photos.
+          </p>
+          <Button onClick={() => setDialogOpen(true)}>
+            <Plus className="size-4 mr-1" />
+            Create Album
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          {albums.map((album) => (
+            <div
+              key={album.id}
+              className="group relative rounded-xl border border-rose-200/60 bg-white p-4 shadow-sm transition hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900"
+            >
+              <Link href={`/albums/${album.id}`} className="block">
+                <div className="mb-3 flex aspect-square items-center justify-center rounded-lg bg-rose-100 dark:bg-zinc-800">
+                  <ImageIcon className="size-10 text-rose-400 dark:text-zinc-600" />
+                </div>
+                <h3 className="font-medium text-zinc-900 dark:text-zinc-100 truncate">
+                  {album.name}
+                </h3>
+                {album.description && (
+                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400 truncate">
+                    {album.description}
+                  </p>
+                )}
+              </Link>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleDeleteAlbum(album.id);
+                }}
+                className="absolute right-2 top-2 rounded-full bg-black/50 p-1.5 text-white opacity-0 transition hover:bg-red-500 group-hover:opacity-100"
+                aria-label="Delete album"
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+</file>
+
+<file path="app/contact/page.tsx">
+"use client";
+
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import { Mail, Send } from "lucide-react";
+
+export default function ContactPage() {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    
+    if (!name.trim() || !email.trim() || !message.trim()) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+
+    setSending(true);
+    
+    // Simulate sending
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    
+    toast.success("Message sent! We'll get back to you soon.");
+    setName("");
+    setEmail("");
+    setMessage("");
+    setSending(false);
+  }
+
+  return (
+    <main className="mx-auto w-full max-w-xl py-12 px-4">
+      <div className="text-center mb-8">
+        <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+          Get in Touch
+        </h1>
+        <p className="mt-2 text-zinc-500 dark:text-zinc-400">
+          Have questions or feedback? We'd love to hear from you.
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-white/20 bg-white/40 p-6 shadow-xl backdrop-blur-md dark:border-white/10 dark:bg-zinc-900/40 sm:p-8">
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="space-y-2">
+            <label htmlFor="name" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              Name
+            </label>
+            <Input
+              id="name"
+              type="text"
+              placeholder="Your name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="bg-white/60 dark:bg-zinc-800/60"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="email" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              Email
+            </label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="bg-white/60 dark:bg-zinc-800/60"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="message" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              Message
+            </label>
+            <Textarea
+              id="message"
+              placeholder="Tell us what's on your mind..."
+              rows={5}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              className="bg-white/60 dark:bg-zinc-800/60 resize-none"
+            />
+          </div>
+
+          <Button
+            type="submit"
+            disabled={sending}
+            className="w-full"
+          >
+            {sending ? (
+              <>
+                <Mail className="size-4 mr-2 animate-pulse" />
+                Sending...
+              </>
+            ) : (
+              <>
+                <Send className="size-4 mr-2" />
+                Send Message
+              </>
+            )}
+          </Button>
+        </form>
+      </div>
+    </main>
+  );
+}
+</file>
+
+<file path="app/gallery/page.tsx">
+import GalleryGrid, { type GalleryPhoto } from "@/components/GalleryGrid";
+import { createClient, getPhotosWithSignedUrls } from "@/utils/supabase/server";
+import { SearchBar } from "@/components/SearchBar";
+import { PhotosPagination } from "@/components/PhotosPagination";
+
+interface PhotoRow {
+  id: string;
+  file_path: string;
+  created_at: string;
+  signedUrl: string | null;
+  camera?: string;
+  lens?: string;
+  iso?: number;
+  aperture?: string;
+  shutter_speed?: string;
+  focal_length?: string;
+  width?: number;
+  height?: number;
+  file_size?: number;
+  date_taken?: string;
+}
+
+export default async function GalleryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; search?: string }>;
+}) {
+  const params = await searchParams;
+  const page = parseInt(params.page ?? "1", 10);
+  const search = params.search ?? "";
+  const limit = 24;
+  const offset = (page - 1) * limit;
+
+  const supabase = await createClient();
+  const { data: countData } = await supabase
+    .from("photos")
+    .select("*", { count: "exact", head: true })
+    .ilike("file_path", `%${search}%`);
+
+  const totalCount = countData?.length ?? 0;
+  const totalPages = Math.ceil(totalCount / limit);
+
+  const rows = await getPhotosWithSignedUrls(supabase, {
+    limit,
+    offset,
+    search: search || undefined,
+  });
+
+  const photos: GalleryPhoto[] = rows
+    .filter((photo): photo is PhotoRow & { signedUrl: string } => photo.signedUrl !== null)
+    .map((photo) => ({
+      id: photo.id,
+      file_path: photo.file_path,
+      signedUrl: photo.signedUrl,
+      created_at: photo.created_at,
+      camera: photo.camera,
+      lens: photo.lens,
+      iso: photo.iso,
+      aperture: photo.aperture,
+      shutter_speed: photo.shutter_speed,
+      focal_length: photo.focal_length,
+      width: photo.width,
+      height: photo.height,
+      file_size: photo.file_size,
+      date_taken: photo.date_taken,
+    }));
+
+  return (
+    <main className="mx-auto w-full max-w-6xl py-6">
+      <div className="mb-4 space-y-1">
+        <p className="text-sm font-medium text-rose-500 dark:text-rose-300">Gallery</p>
+        <h1 className="text-2xl font-semibold tracking-tight">Your collection</h1>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          Tap any image to view it in full detail.
+        </p>
+      </div>
+      <SearchBar />
+      <GalleryGrid photos={photos} />
+      {totalPages > 1 && (
+        <PhotosPagination
+          currentPage={page}
+          totalPages={totalPages}
+          search={search}
+        />
+      )}
+    </main>
+  );
+}
+</file>
+
+<file path="app/loading.tsx">
+import { GallerySkeleton } from "@/components/GallerySkeleton";
+
+export default function Loading() {
+  return <GallerySkeleton />;
+}
+</file>
+
+<file path="app/login/page.tsx">
+"use client";
+
+import { FormEvent, Suspense, useState } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { toast } from "@/components/ui/toast";
+import { createClient } from "@/utils/supabase/client";
+
+function LoginForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath = searchParams.get("next") || "/gallery";
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setLoading(true);
+
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      toast.error(error.message || "Unable to sign in. Please try again.");
+      setLoading(false);
+      return;
+    }
+
+    router.replace(nextPath);
+    router.refresh();
+  };
+
+  return (
+    <main className="flex min-h-screen items-center justify-center px-4 py-12">
+      <div className="absolute inset-0 -z-10 bg-gradient-to-br from-[#fff1f2] via-white to-white dark:from-[#09090b] dark:via-[#09090b] dark:to-[#09090b]" />
+      <div className="absolute -top-40 -right-40 size-80 rounded-full bg-rose-300/30 blur-3xl" />
+      <div className="absolute -bottom-40 -left-40 size-80 rounded-full bg-rose-200/30 blur-3xl dark:bg-rose-500/10" />
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-sm rounded-3xl border border-white/40 bg-white/60 p-8 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/60"
+      >
+        <div className="mb-8 space-y-2 text-center">
+          <p className="text-sm font-medium text-rose-500 dark:text-rose-300">Yabsera&apos;s Gallery</p>
+          <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
+            Welcome back
+          </h1>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            Sign in to access your private collection.
+          </p>
+        </div>
+
+        <form className="space-y-5" onSubmit={handleSubmit}>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300" htmlFor="email">
+              Email
+            </label>
+            <Input
+              id="email"
+              type="email"
+              autoComplete="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="h-11 bg-white/60 dark:bg-zinc-800/60"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300" htmlFor="password">
+              Password
+            </label>
+            <Input
+              id="password"
+              type="password"
+              autoComplete="current-password"
+              placeholder="Your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="h-11 bg-white/60 dark:bg-zinc-800/60"
+              required
+            />
+          </div>
+
+          <motion.div
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <Button
+              className="h-11 w-full text-base"
+              type="submit"
+              disabled={loading}
+            >
+              {loading ? "Signing in..." : "Sign In"}
+            </Button>
+          </motion.div>
+        </form>
+
+        <p className="mt-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
+          New here?{" "}
+          <Link href="/signup" className="font-medium text-rose-600 hover:underline dark:text-rose-300">
+            Create an account
+          </Link>
+        </p>
+
+        <p className="mt-4 text-center text-sm">
+          <Link href="/" className="text-zinc-400 hover:text-rose-500 dark:hover:text-rose-300">
+            ← Back to Home
+          </Link>
+        </p>
+      </motion.div>
+    </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center px-4">
+          <div className="w-full max-w-sm rounded-3xl border border-white/40 bg-white/60 p-8 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/60">
+            <p className="text-center text-zinc-500">Loading...</p>
+          </div>
+        </main>
+      }
+    >
+      <LoginForm />
+    </Suspense>
+  );
+}
+</file>
+
+<file path="app/settings/page.tsx">
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
+import { createClient } from "@/utils/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
+import { toast } from "sonner";
+import { HardDrive, Loader2 } from "lucide-react";
+
+type User = {
+  email?: string;
+  id: string;
+} | null;
+
+interface StorageInfo {
+  used: number;
+  limit: number;
+}
+
+const STORAGE_LIMIT_MB = 1000;
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+}
+
+export default function SettingsPage() {
+  const router = useRouter();
+  const { theme, setTheme } = useTheme();
+  const [user, setUser] = useState<User>(null);
+  const [loading, setLoading] = useState(true);
+  const [storageInfo, setStorageInfo] = useState<StorageInfo | null>(null);
+  const [storageLoading, setStorageLoading] = useState(true);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
+
+  const supabase = createClient();
+
+  useEffect(() => {
+    async function getUser() {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+      setLoading(false);
+    }
+    getUser();
+  }, [supabase]);
+
+  useEffect(() => {
+    async function fetchStorage() {
+      if (!user?.id) return;
+      
+      setStorageLoading(true);
+      try {
+        const { data: files, error } = await supabase.storage
+          .from("photos")
+          .list(user.id, { limit: 1000 });
+
+        if (error) throw error;
+
+        const totalSize = (files ?? []).reduce((acc, file) => acc + (file.metadata?.size || 0), 0);
+        setStorageInfo({
+          used: totalSize,
+          limit: STORAGE_LIMIT_MB * 1024 * 1024,
+        });
+      } catch (err) {
+        console.error("Failed to fetch storage:", err);
+      } finally {
+        setStorageLoading(false);
+      }
+    }
+
+    if (user) {
+      fetchStorage();
+    }
+  }, [user, supabase]);
+
+  async function handlePasswordUpdate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!currentPassword) {
+      toast.error("Please enter your current password");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+
+    setPasswordLoading(true);
+
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: user?.email || "",
+      password: currentPassword,
+    });
+
+    if (signInError) {
+      setPasswordLoading(false);
+      toast.error("Current password is incorrect");
+      return;
+    }
+
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setPasswordLoading(false);
+
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Password updated successfully");
+      setNewPassword("");
+      setConfirmPassword("");
+      setCurrentPassword("");
+    }
+  }
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    router.push("/login");
+  }
+
+  if (loading) {
+    return (
+      <div className="flex h-40 items-center justify-center">
+        <p className="text-sm text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+        <p className="text-sm text-muted-foreground">Manage your account settings</p>
+      </div>
+
+      <section className="rounded-xl border bg-card p-4">
+        <h2 className="mb-3 text-sm font-medium text-foreground">Profile</h2>
+        <p className="text-sm text-muted-foreground">{user?.email || "No email"}</p>
+      </section>
+
+      <section className="rounded-xl border bg-card p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-medium text-foreground">Storage</h2>
+          <HardDrive className="size-4 text-zinc-400" />
+        </div>
+        {storageLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />
+            Loading...
+          </div>
+        ) : storageInfo ? (
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>{formatBytes(storageInfo.used)} used</span>
+              <span>{formatBytes(storageInfo.limit)} total</span>
+            </div>
+            <Progress
+              value={(storageInfo.used / storageInfo.limit) * 100}
+              className="h-2"
+            />
+            <p className="text-xs text-zinc-400">
+              {formatBytes(storageInfo.limit - storageInfo.used)} remaining
+            </p>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">Unable to fetch storage info</p>
+        )}
+      </section>
+
+      <section className="rounded-xl border bg-card p-4">
+        <h2 className="mb-3 text-sm font-medium text-foreground">Theme</h2>
+        <div className="flex gap-2">
+          <Button
+            variant={theme === "light" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setTheme("light")}
+          >
+            Light
+          </Button>
+          <Button
+            variant={theme === "dark" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setTheme("dark")}
+          >
+            Dark
+          </Button>
+          <Button
+            variant={theme === "system" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setTheme("system")}
+          >
+            System
+          </Button>
+        </div>
+      </section>
+
+      <section className="rounded-xl border bg-card p-4">
+        <h2 className="mb-3 text-sm font-medium text-foreground">Password</h2>
+        <form onSubmit={handlePasswordUpdate} className="space-y-3">
+          <Input
+            type="password"
+            placeholder="Current Password"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+          />
+          <Input
+            type="password"
+            placeholder="New Password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+          />
+          <Input
+            type="password"
+            placeholder="Confirm Password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+          />
+          <Button type="submit" disabled={passwordLoading} className="w-full">
+            {passwordLoading ? "Updating..." : "Update Password"}
+          </Button>
+        </form>
+      </section>
+
+      <section className="rounded-xl border bg-card p-4">
+        <Button
+          variant="destructive"
+          className="w-full"
+          onClick={handleLogout}
+        >
+          Logout
+        </Button>
+      </section>
+    </div>
+  );
+}
+</file>
+
+<file path="app/signup/page.tsx">
+"use client";
+
+import Link from "next/link";
+import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { toast } from "@/components/ui/toast";
+import { createClient } from "@/utils/supabase/client";
+
+export default function SignupPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setLoading(true);
+
+    const supabase = createClient();
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+
+    if (error) {
+      toast.error(error.message || "Unable to create account. Please try again.");
+      setLoading(false);
+      return;
+    }
+
+    if (data.session) {
+      toast.success("Account created. Welcome!");
+      router.replace("/");
+      router.refresh();
+      return;
+    }
+
+    toast.success("Account created. Check your email to confirm your account.");
+    router.replace("/login");
+    router.refresh();
+  };
+
+  return (
+    <main className="flex min-h-screen items-center justify-center px-4 py-12">
+      <div className="absolute inset-0 -z-10 bg-gradient-to-br from-[#fff1f2] via-white to-white dark:from-[#09090b] dark:via-[#09090b] dark:to-[#09090b]" />
+      <div className="absolute -top-40 -right-40 size-80 rounded-full bg-rose-300/30 blur-3xl" />
+      <div className="absolute -bottom-40 -left-40 size-80 rounded-full bg-rose-200/30 blur-3xl dark:bg-rose-500/10" />
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-sm rounded-3xl border border-white/40 bg-white/60 p-8 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/60"
+      >
+        <div className="mb-8 space-y-2 text-center">
+          <p className="text-sm font-medium text-rose-500 dark:text-rose-300">Yabsera&apos;s Gallery</p>
+          <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
+            Create account
+          </h1>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            Start your private photo collection today.
+          </p>
+        </div>
+
+        <form className="space-y-5" onSubmit={handleSubmit}>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300" htmlFor="email">
+              Email
+            </label>
+            <Input
+              id="email"
+              type="email"
+              autoComplete="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="h-11 bg-white/60 dark:bg-zinc-800/60"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300" htmlFor="password">
+              Password
+            </label>
+            <Input
+              id="password"
+              type="password"
+              autoComplete="new-password"
+              placeholder="Create a password (min 6 characters)"
+              minLength={6}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="h-11 bg-white/60 dark:bg-zinc-800/60"
+              required
+            />
+          </div>
+
+          <motion.div
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <Button
+              className="h-11 w-full text-base"
+              type="submit"
+              disabled={loading}
+            >
+              {loading ? "Creating account..." : "Create Account"}
+            </Button>
+          </motion.div>
+        </form>
+
+        <p className="mt-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
+          Already have an account?{" "}
+          <Link href="/login" className="font-medium text-rose-600 hover:underline dark:text-rose-300">
+            Sign in
+          </Link>
+        </p>
+
+        <p className="mt-4 text-center text-sm">
+          <Link href="/" className="text-zinc-400 hover:text-rose-500 dark:hover:text-rose-300">
+            ← Back to Home
+          </Link>
+        </p>
+      </motion.div>
+    </main>
+  );
+}
+</file>
+
+<file path="app/upload/page.tsx">
+import UploadEngine from "@/components/UploadEngine";
+
+export default function UploadPage() {
+  return (
+    <main className="mx-auto w-full max-w-3xl py-6">
+      <section className="rounded-3xl border border-rose-200/70 bg-white/75 p-5 shadow-lg shadow-rose-200/30 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/70 dark:shadow-none sm:p-6">
+        <div className="mb-5 space-y-1">
+          <p className="text-sm font-medium text-rose-500 dark:text-rose-300">Upload</p>
+          <h1 className="text-2xl font-semibold tracking-tight">Add new photos</h1>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            Drop multiple images, compress automatically, and upload them securely.
+          </p>
+        </div>
+        <UploadEngine />
+      </section>
+    </main>
+  );
+}
+</file>
+
+<file path="components/AlbumSelector.tsx">
+"use client";
+
+import { useEffect, useState } from "react";
+import { createClient } from "@/utils/supabase/client";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { FolderPlus, Folder, Loader2 } from "lucide-react";
+
+interface Album {
+  id: string;
+  name: string;
+}
+
+interface AlbumSelectorProps {
+  photoIds: string[];
+  onSuccess?: () => void;
+}
+
+export function AlbumSelector({ photoIds, onSuccess }: AlbumSelectorProps) {
+  const supabase = createClient();
+  const [open, setOpen] = useState(false);
+  const [albums, setAlbums] = useState<Album[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      fetchAlbums();
+    }
+  }, [open]);
+
+  async function fetchAlbums() {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("albums")
+        .select("id, name")
+        .eq("user_id", user.id)
+        .order("name");
+
+      if (error) throw error;
+      setAlbums(data ?? []);
+    } catch (err) {
+      console.error("Failed to fetch albums:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleAddToAlbum(albumId: string) {
+    setAdding(true);
+    try {
+      const records = photoIds.map((photo_id) => ({ photo_id, album_id: albumId }));
+      const { error } = await supabase.from("photo_albums").upsert(records, { onConflict: "photo_id,album_id" });
+
+      if (error) throw error;
+
+      setOpen(false);
+      onSuccess?.();
+    } catch (err) {
+      console.error("Failed to add to album:", err);
+    } finally {
+      setAdding(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button type="button" className="h-11 flex-1">
+          <FolderPlus className="size-4 mr-2" />
+          Add to Album
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add to Album</DialogTitle>
+        </DialogHeader>
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="size-6 animate-spin text-zinc-400" />
+          </div>
+        ) : albums.length === 0 ? (
+          <div className="py-8 text-center text-sm text-zinc-500">
+            No albums yet. Create one first.
+          </div>
+        ) : (
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {albums.map((album) => (
+              <button
+                key={album.id}
+                onClick={() => handleAddToAlbum(album.id)}
+                disabled={adding}
+                className="flex w-full items-center gap-3 rounded-lg border p-3 text-left transition hover:bg-muted disabled:opacity-50"
+              >
+                <Folder className="size-5 text-zinc-400" />
+                <span className="font-medium">{album.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+</file>
+
+<file path="components/BottomNav.tsx">
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Images, Settings, Upload, FolderOpen, Info, Mail } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const navItems = [
+  { href: "/gallery", label: "Gallery", icon: Images },
+  { href: "/albums", label: "Albums", icon: FolderOpen },
+  { href: "/upload", label: "Upload", icon: Upload },
+  { href: "/contact", label: "Contact", icon: Mail },
+  { href: "/settings", label: "Settings", icon: Settings },
+];
+
+export default function BottomNav() {
+  const pathname = usePathname();
+
+  return (
+    <nav aria-label="Main navigation" className="fixed inset-x-0 bottom-0 z-50 border-t border-white/20 bg-white/55 px-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 backdrop-blur-xl dark:border-white/10 dark:bg-zinc-950/45">
+      <div className="mx-auto flex max-w-md items-center justify-around rounded-2xl border border-white/30 bg-white/40 px-2 py-1 shadow-lg shadow-rose-200/30 backdrop-blur-md dark:border-white/10 dark:bg-zinc-900/50 dark:shadow-none">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const active =
+            item.href === "/"
+              ? pathname === item.href
+              : pathname.startsWith(item.href);
+
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "flex min-w-20 flex-col items-center gap-1 rounded-xl px-3 py-2 text-xs transition-colors",
+                active
+                  ? "bg-rose-100/80 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200"
+                  : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+              )}
+            >
+              <Icon className="size-5" aria-hidden="true" />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
+</file>
+
+<file path="components/BottomNavWrapper.tsx">
+"use client";
+
+import { usePathname } from "next/navigation";
+import BottomNav from "@/components/BottomNav";
+
+const hiddenNavPaths = ["/login", "/signup", "/", "/about", "/contact"];
+
+export default function BottomNavWrapper() {
+  const pathname = usePathname();
+  
+  if (hiddenNavPaths.includes(pathname)) return null;
+  
+  return <BottomNav />;
+}
+</file>
+
+<file path="components/ClientOnly.tsx">
+"use client";
+
+import { useEffect, useState, ReactNode } from "react";
+
+interface ClientOnlyProps {
+  children: ReactNode;
+}
+
+export default function ClientOnly({ children }: ClientOnlyProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
+  return <>{children}</>;
+}
+</file>
+
+<file path="components/EmptyStates.tsx">
+"use client";
+
+import { ImagePlus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+
+export function EmptyState() {
+  return (
+    <div className="rounded-2xl border border-rose-200/70 bg-white/70 px-4 py-12 text-center dark:border-zinc-800 dark:bg-zinc-900/60">
+      <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-500/20">
+        <ImagePlus className="size-8 text-rose-500 dark:text-rose-300" />
+      </div>
+      <h3 className="mb-2 text-lg font-medium text-zinc-900 dark:text-zinc-100">
+        No photos yet
+      </h3>
+      <p className="mb-6 max-w-sm mx-auto text-sm text-zinc-500 dark:text-zinc-400">
+        Upload your first images to start building your premium photo collection.
+      </p>
+      <Link href="/upload">
+        <Button>Start uploading</Button>
+      </Link>
+    </div>
+  );
+}
+
+export function EmptySearchState({ search }: { search: string }) {
+  return (
+    <div className="rounded-2xl border border-rose-200/70 bg-white/70 px-4 py-12 text-center dark:border-zinc-800 dark:bg-zinc-900/60">
+      <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-500/20">
+        <ImagePlus className="size-8 text-rose-500 dark:text-rose-300" />
+      </div>
+      <h3 className="mb-2 text-lg font-medium text-zinc-900 dark:text-zinc-100">
+        No results found
+      </h3>
+      <p className="max-w-sm mx-auto text-sm text-zinc-500 dark:text-zinc-400">
+        No photos matching &quot;{search}&quot;. Try a different search term.
+      </p>
+    </div>
+  );
+}
+</file>
+
+<file path="components/GalleryGrid.tsx">
+"use client";
+
+import { useMemo, useState, useRef } from "react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { AnimatePresence, motion } from "framer-motion";
+import Lightbox from "yet-another-react-lightbox";
+import "yet-another-react-lightbox/styles.css";
+import { createClient } from "@/utils/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from "@/components/ui/toast";
+import { useGalleryStore } from "@/store/useGalleryStore";
+import { AlbumSelector } from "@/components/AlbumSelector";
+import { PhotoDetailDialog } from "@/components/PhotoDetailDialog";
+import { Download, MoreHorizontal } from "lucide-react";
+
+export interface GalleryPhoto {
+  id: string;
+  file_path: string;
+  signedUrl: string;
+  created_at?: string;
+  camera?: string;
+  lens?: string;
+  iso?: number;
+  aperture?: string;
+  shutter_speed?: string;
+  focal_length?: string;
+  width?: number;
+  height?: number;
+  file_size?: number;
+  date_taken?: string;
+}
+
+interface GalleryGridProps {
+  photos: GalleryPhoto[];
+  albumId?: string;
+}
+
+const formatDate = (dateStr: string) => {
+  return new Date(dateStr).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const getFileName = (path: string) => {
+  const parts = path.split("/");
+  return parts[parts.length - 1] || "Photo";
+};
+
+export default function GalleryGrid({ photos, albumId }: GalleryGridProps) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [index, setIndex] = useState(0);
+  const [deleting, setDeleting] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [detailPhoto, setDetailPhoto] = useState<GalleryPhoto | null>(null);
+  const undoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const deletedPhotosRef = useRef<{ ids: string[]; filePaths: string[] } | null>(null);
+  const {
+    isSelectMode,
+    selectedPhotos,
+    toggleSelectMode,
+    togglePhotoSelection,
+  } = useGalleryStore();
+
+  const slides = useMemo(
+    () =>
+      photos.map((photo) => ({
+        src: photo.signedUrl,
+      })),
+    [photos]
+  );
+  const selectedIds = useMemo(
+    () => new Set(selectedPhotos.map((photo) => photo.id)),
+    [selectedPhotos]
+  );
+
+  const handleDelete = async (showUndo = true) => {
+    if (selectedPhotos.length === 0 || deleting) return;
+
+    const ids = selectedPhotos.map((photo) => photo.id);
+    const filePaths = selectedPhotos.map((photo) => photo.file_path);
+
+    if (showUndo) {
+      deletedPhotosRef.current = { ids, filePaths };
+    }
+
+    setDeleting(true);
+    try {
+      const supabase = createClient();
+
+      const { error: storageError } = await supabase.storage
+        .from("photos")
+        .remove(filePaths);
+      if (storageError) throw storageError;
+
+      const { error: dbError } = await supabase.from("photos").delete().in("id", ids);
+      if (dbError) throw dbError;
+
+      router.refresh();
+      toggleSelectMode();
+
+      if (showUndo) {
+        toast.success(
+          <div className="flex items-center gap-2">
+            <span>Deleted {ids.length} photo(s)</span>
+            <button
+              onClick={() => handleUndoDelete()}
+              className="font-medium text-rose-600 hover:underline"
+            >
+              Undo
+            </button>
+          </div>,
+          { duration: 5000 }
+        );
+      } else {
+        toast.success("Photos deleted successfully.");
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to delete selected photos.";
+      toast.error(message);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleUndoDelete = async () => {
+    if (!deletedPhotosRef.current || deleting) return;
+
+    const { ids, filePaths } = deletedPhotosRef.current;
+    deletedPhotosRef.current = null;
+
+    if (undoTimeoutRef.current) {
+      clearTimeout(undoTimeoutRef.current);
+      undoTimeoutRef.current = null;
+    }
+
+    setDeleting(true);
+    try {
+      const supabase = createClient();
+
+      for (let i = 0; i < filePaths.length; i++) {
+        const { error: insertError } = await supabase.from("photos").insert({
+          id: ids[i],
+          file_path: filePaths[i],
+        });
+        if (insertError) throw insertError;
+      }
+
+      router.refresh();
+      toast.success("Photos restored");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to restore photos.";
+      toast.error(message);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleBulkDownload = async (selected: typeof selectedPhotos) => {
+    if (selected.length === 0 || downloading) return;
+
+    setDownloading(true);
+    try {
+      const supabase = createClient();
+      const filePaths = selected.map((photo) => photo.file_path);
+
+      const { data: urls, error: urlError } = await supabase.storage
+        .from("photos")
+        .createSignedUrls(filePaths, 3600);
+
+      if (urlError || !urls) throw urlError || new Error("Failed to get download URLs");
+
+      for (const urlData of urls) {
+        if (!urlData?.signedUrl || !urlData?.path) continue;
+        
+        const response = await fetch(urlData.signedUrl);
+        const blob = await response.blob();
+        const filename = urlData.path.split("/").pop() || "photo.jpg";
+        
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        link.click();
+        URL.revokeObjectURL(link.href);
+      }
+
+      toast.success(`Downloaded ${selected.length} photo(s)`);
+      toggleSelectMode();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to download photos.";
+      toast.error(message);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const formatFileSize = (bytes?: number) => {
+    if (!bytes) return null;
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  };
+
+  if (photos.length === 0) {
+    return (
+      <div className="rounded-2xl border border-rose-200/70 bg-white/70 px-4 py-10 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-400">
+        No photos yet. Upload your first images to fill your gallery.
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="mb-4 flex items-center justify-end">
+        <Button type="button" variant={isSelectMode ? "default" : "outline"} onClick={toggleSelectMode}>
+          {isSelectMode ? "Cancel" : "Select"}
+        </Button>
+      </div>
+
+      <div className="columns-2 gap-4 md:columns-3 lg:columns-4">
+        {photos.map((photo, photoIndex) => (
+          <motion.div
+            key={photo.id}
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              duration: 0.35,
+              delay: photoIndex * 0.1,
+              ease: "easeOut",
+            }}
+            className="mb-4 break-inside-avoid"
+          >
+            <button
+              type="button"
+              onClick={() => {
+                if (isSelectMode) {
+                  togglePhotoSelection({ id: photo.id, file_path: photo.file_path });
+                  return;
+                }
+                setIndex(photoIndex);
+                setOpen(true);
+              }}
+              className="group relative block w-full overflow-hidden rounded-xl border border-rose-200/60 bg-white shadow-sm transition hover:shadow-lg dark:border-zinc-800 dark:bg-zinc-900"
+            >
+              {isSelectMode && (
+                <span
+                  className="absolute right-2 top-2 z-20 rounded-md bg-white/85 p-1 backdrop-blur dark:bg-zinc-900/85"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    togglePhotoSelection({ id: photo.id, file_path: photo.file_path });
+                  }}
+                >
+                  <Checkbox checked={selectedIds.has(photo.id)} />
+                </span>
+              )}
+              {!isSelectMode && (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setDetailPhoto(photo);
+                  }}
+                  className="absolute right-2 top-2 z-10 rounded-full bg-black/40 p-1.5 text-white opacity-0 transition hover:bg-black/60 group-hover:opacity-100"
+                  aria-label="Photo details"
+                >
+                  <MoreHorizontal className="size-4" />
+                </button>
+              )}
+              <div className="relative aspect-[3/4]">
+                <Image
+                  src={photo.signedUrl}
+                  alt={`Gallery photo ${photoIndex + 1}`}
+                  fill
+                  sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                  className="object-cover transition duration-300 group-hover:scale-[1.02]"
+                  loading="lazy"
+                />
+              </div>
+            </button>
+          </motion.div>
+        ))}
+      </div>
+
+      <AnimatePresence>
+        {selectedPhotos.length > 0 && !albumId && (
+          <motion.div
+            initial={{ y: 120, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 120, opacity: 0 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+            className="fixed inset-x-0 bottom-24 z-50 mx-auto flex w-[calc(100%-1.5rem)] max-w-md gap-2 rounded-2xl border border-red-300/70 bg-white/90 p-3 shadow-2xl backdrop-blur dark:border-red-900/70 dark:bg-zinc-950/90"
+          >
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 flex-1"
+              onClick={() => handleBulkDownload(selectedPhotos)}
+              disabled={downloading}
+            >
+              <Download className="size-4 mr-2" />
+              Download
+            </Button>
+            <AlbumSelector
+              photoIds={selectedPhotos.map((p) => p.id)}
+              onSuccess={() => toggleSelectMode()}
+            />
+            <Button
+              type="button"
+              variant="destructive"
+              className="h-11 flex-1"
+              onClick={() => handleDelete(true)}
+              disabled={deleting}
+            >
+              Delete {selectedPhotos.length} Photo{selectedPhotos.length > 1 ? "s" : ""}
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <Lightbox
+        open={open}
+        close={() => setOpen(false)}
+        index={index}
+        slides={slides.map((slide, i) => {
+          const photo = photos[i];
+          const metaParts: string[] = [];
+          if (photo?.camera) metaParts.push(photo.camera);
+          if (photo?.lens) metaParts.push(photo.lens);
+          
+          const techParts: string[] = [];
+          if (photo?.aperture) techParts.push(photo.aperture);
+          if (photo?.shutter_speed) techParts.push(photo.shutter_speed);
+          if (photo?.iso) techParts.push(`ISO ${photo.iso}`);
+          if (photo?.focal_length) techParts.push(photo.focal_length);
+          if (photo?.width && photo?.height) techParts.push(`${photo.width}×${photo.height}`);
+          if (photo?.file_size != null) techParts.push(formatFileSize(photo.file_size)!);
+
+          return {
+            ...slide,
+            title: photo?.date_taken ? formatDate(photo.date_taken) : (photo?.created_at ? formatDate(photo.created_at) : undefined),
+            description: [
+              photo?.file_path ? getFileName(photo.file_path) : null,
+              metaParts.length > 0 ? metaParts.join(" · ") : null,
+              techParts.length > 0 ? techParts.join(" · ") : null,
+            ].filter(Boolean).join("\n") || undefined,
+          };
+        })}
+        controller={{ closeOnBackdropClick: true }}
+        animation={{ fade: 250, swipe: 250 }}
+        styles={{ container: { backgroundColor: "rgba(0,0,0,0.95)" } }}
+        carousel={{ preload: 2 }}
+        on={{ view: ({ index: viewIndex }) => setIndex(viewIndex) }}
+      />
+
+      <PhotoDetailDialog
+        photo={detailPhoto}
+        open={!!detailPhoto}
+        onOpenChange={(open) => !open && setDetailPhoto(null)}
+      />
+    </>
+  );
+}
+</file>
+
+<file path="components/GallerySection.tsx">
+import GalleryGrid, { type GalleryPhoto } from "@/components/GalleryGrid";
+
+interface GallerySectionProps {
+  photos: GalleryPhoto[];
+}
+
+export function GallerySection({ photos }: GallerySectionProps) {
+  return <GalleryGrid photos={photos} />;
+}
+</file>
+
+<file path="components/GallerySkeleton.tsx">
+"use client";
+
+import { Skeleton } from "@/components/ui/skeleton";
+
+export function GallerySkeleton() {
+  const skeletonItems = Array.from({ length: 12 }, (_, i) => i);
+
+  return (
+    <div className="columns-2 gap-4 md:columns-3 lg:columns-4">
+      {skeletonItems.map((i) => (
+        <Skeleton
+          key={i}
+          className="mb-4 aspect-[3/4] w-full rounded-xl"
+          style={{ animationDelay: `${i * 0.05}s` }}
+        />
+      ))}
+    </div>
+  );
+}
+</file>
+
+<file path="components/PhotoDetailDialog.tsx">
+"use client";
+
+import { GalleryPhoto } from "@/components/GalleryGrid";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Camera, Aperture, Timer, Focus, Image, HardDrive, Calendar, Eye } from "lucide-react";
+
+interface PhotoDetailDialogProps {
+  photo: GalleryPhoto | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+function formatFileSize(bytes?: number): string {
+  if (!bytes) return "-";
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+}
+
+function formatDimensions(width?: number, height?: number): string {
+  if (!width || !height) return "-";
+  return `${width} × ${height}`;
+}
+
+function formatDate(dateStr?: string): string {
+  if (!dateStr) return "-";
+  return new Date(dateStr).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export function PhotoDetailDialog({ photo, open, onOpenChange }: PhotoDetailDialogProps) {
+  if (!photo) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="text-base">Photo Details</DialogTitle>
+        </DialogHeader>
+        
+        <div className="space-y-4">
+          {/* Preview */}
+          <div className="relative aspect-[3/4] overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-800">
+            <img
+              src={photo.signedUrl}
+              alt="Preview"
+              className="h-full w-full object-contain"
+            />
+          </div>
+
+          {/* Details */}
+          <div className="space-y-3 text-sm">
+            {photo.date_taken && (
+              <div className="flex items-center gap-3">
+                <Calendar className="size-4 text-zinc-400" />
+                <span className="text-zinc-600 dark:text-zinc-300">
+                  {formatDate(photo.date_taken)}
+                </span>
+              </div>
+            )}
+
+            {photo.camera && (
+              <div className="flex items-center gap-3">
+                <Camera className="size-4 text-zinc-400" />
+                <span className="text-zinc-600 dark:text-zinc-300">{photo.camera}</span>
+              </div>
+            )}
+
+            {photo.lens && (
+              <div className="flex items-center gap-3">
+                <Focus className="size-4 text-zinc-400" />
+                <span className="text-zinc-600 dark:text-zinc-300">{photo.lens}</span>
+              </div>
+            )}
+
+            <div className="flex gap-4">
+              {photo.aperture && (
+                <div className="flex items-center gap-2">
+                  <Aperture className="size-4 text-zinc-400" />
+                  <span className="text-zinc-600 dark:text-zinc-300">{photo.aperture}</span>
+                </div>
+              )}
+              {photo.shutter_speed && (
+                <div className="flex items-center gap-2">
+                  <Timer className="size-4 text-zinc-400" />
+                  <span className="text-zinc-600 dark:text-zinc-300">{photo.shutter_speed}</span>
+                </div>
+              )}
+              {photo.iso && (
+                <div className="flex items-center gap-2">
+                  <Eye className="size-4 text-zinc-400" />
+                  <span className="text-zinc-600 dark:text-zinc-300">ISO {photo.iso}</span>
+                </div>
+              )}
+            </div>
+
+            {photo.focal_length && (
+              <div className="flex items-center gap-3">
+                <Focus className="size-4 text-zinc-400" />
+                <span className="text-zinc-600 dark:text-zinc-300">{photo.focal_length}</span>
+              </div>
+            )}
+
+            <div className="flex gap-4">
+              <div className="flex items-center gap-2">
+                <Image className="size-4 text-zinc-400" />
+                <span className="text-zinc-600 dark:text-zinc-300">
+                  {formatDimensions(photo.width, photo.height)}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <HardDrive className="size-4 text-zinc-400" />
+                <span className="text-zinc-600 dark:text-zinc-300">
+                  {formatFileSize(photo.file_size)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+</file>
+
+<file path="components/PhotosPagination.tsx">
+"use client";
+
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+
+interface PhotosPaginationProps {
+  currentPage: number;
+  totalPages: number;
+  search: string;
+}
+
+export function PhotosPagination({ currentPage, totalPages, search }: PhotosPaginationProps) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const goToPage = (page: number) => {
+    const params = new URLSearchParams(searchParams);
+    params.set("page", page.toString());
+    if (search) {
+      params.set("search", search);
+    }
+    router.replace(`${pathname}?${params.toString()}`);
+  };
+
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    const maxVisible = 5;
+
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) pages.push(i);
+        pages.push("...");
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        pages.push("...");
+        for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        pages.push("...");
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+        pages.push("...");
+        pages.push(totalPages);
+      }
+    }
+
+    return pages;
+  };
+
+  return (
+    <div className="mt-6 flex items-center justify-center gap-1">
+      <Button
+        variant="outline"
+        size="icon"
+        onClick={() => goToPage(currentPage - 1)}
+        disabled={currentPage <= 1}
+        className="size-8"
+      >
+        <ChevronLeft className="size-4" />
+      </Button>
+
+      {getPageNumbers().map((page, idx) =>
+        typeof page === "number" ? (
+          <Button
+            key={idx}
+            variant={page === currentPage ? "default" : "outline"}
+            size="icon"
+            onClick={() => goToPage(page)}
+            className="size-8"
+          >
+            {page}
+          </Button>
+        ) : (
+          <span key={idx} className="px-2 text-zinc-400">
+            {page}
+          </span>
+        )
+      )}
+
+      <Button
+        variant="outline"
+        size="icon"
+        onClick={() => goToPage(currentPage + 1)}
+        disabled={currentPage >= totalPages}
+        className="size-8"
+      >
+        <ChevronRight className="size-4" />
+      </Button>
+    </div>
+  );
+}
+</file>
+
+<file path="components/SearchBar.tsx">
+"use client";
+
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useDebouncedCallback } from "use-debounce";
+import { Search, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { useCallback } from "react";
+
+export function SearchBar() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const currentSearch = searchParams.get("search") ?? "";
+
+  const handleSearch = useCallback(
+    (term: string) => {
+      const params = new URLSearchParams(searchParams);
+      if (term) {
+        params.set("search", term);
+        params.set("page", "1");
+      } else {
+        params.delete("search");
+        params.delete("page");
+      }
+      router.replace(`${pathname}?${params.toString()}`);
+    },
+    [pathname, router, searchParams]
+  );
+
+  const debouncedSearch = useDebouncedCallback(handleSearch, 300);
+
+  const clearSearch = () => {
+    handleSearch("");
+  };
+
+  return (
+    <div className="mb-4 relative">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-zinc-400" />
+        <Input
+          type="search"
+          placeholder="Search photos..."
+          defaultValue={currentSearch}
+          onChange={(e) => debouncedSearch(e.target.value)}
+          className="pl-9 pr-8"
+        />
+        {currentSearch && (
+          <button
+            onClick={clearSearch}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-zinc-600"
+            aria-label="Clear search"
+          >
+            <X className="size-4" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="components/ThemeProvider.tsx">
+"use client";
+
+import * as React from "react";
+import { ThemeProvider as NextThemesProvider } from "next-themes";
+
+export function ThemeProvider({
+  children,
+  ...props
+}: React.ComponentProps<typeof NextThemesProvider>) {
+  return <NextThemesProvider {...props}>{children}</NextThemesProvider>;
+}
+</file>
+
+<file path="components/ui/checkbox.tsx">
+"use client"
+
+import * as React from "react"
+import { Checkbox as CheckboxPrimitive } from "radix-ui"
+
+import { cn } from "@/lib/utils"
+import { CheckIcon } from "lucide-react"
+
+function Checkbox({
+  className,
+  ...props
+}: React.ComponentProps<typeof CheckboxPrimitive.Root>) {
+  return (
+    <CheckboxPrimitive.Root
+      data-slot="checkbox"
+      className={cn(
+        "peer relative flex size-4 shrink-0 items-center justify-center rounded-[4px] border border-input transition-colors outline-none group-has-disabled/field:opacity-50 after:absolute after:-inset-x-3 after:-inset-y-2 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 aria-invalid:aria-checked:border-primary dark:bg-input/30 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 data-checked:border-primary data-checked:bg-primary data-checked:text-primary-foreground dark:data-checked:bg-primary",
+        className
+      )}
+      {...props}
+    >
+      <CheckboxPrimitive.Indicator
+        data-slot="checkbox-indicator"
+        className="grid place-content-center text-current transition-none [&>svg]:size-3.5"
+      >
+        <CheckIcon
+        />
+      </CheckboxPrimitive.Indicator>
+    </CheckboxPrimitive.Root>
+  )
+}
+
+export { Checkbox }
+</file>
+
+<file path="components/ui/dialog.tsx">
+"use client"
+
+import * as React from "react"
+import { Dialog as DialogPrimitive } from "radix-ui"
+
+import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { XIcon } from "lucide-react"
+
+function Dialog({
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Root>) {
+  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+}
+
+function DialogTrigger({
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
+  return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
+}
+
+function DialogPortal({
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Portal>) {
+  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
+}
+
+function DialogClose({
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Close>) {
+  return <DialogPrimitive.Close data-slot="dialog-close" {...props} />
+}
+
+function DialogOverlay({
+  className,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
+  return (
+    <DialogPrimitive.Overlay
+      data-slot="dialog-overlay"
+      className={cn(
+        "fixed inset-0 isolate z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function DialogContent({
+  className,
+  children,
+  showCloseButton = true,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Content> & {
+  showCloseButton?: boolean
+}) {
+  return (
+    <DialogPortal>
+      <DialogOverlay />
+      <DialogPrimitive.Content
+        data-slot="dialog-content"
+        className={cn(
+          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          className
+        )}
+        {...props}
+      >
+        {children}
+        {showCloseButton && (
+          <DialogPrimitive.Close data-slot="dialog-close" asChild>
+            <Button
+              variant="ghost"
+              className="absolute top-2 right-2"
+              size="icon-sm"
+            >
+              <XIcon
+              />
+              <span className="sr-only">Close</span>
+            </Button>
+          </DialogPrimitive.Close>
+        )}
+      </DialogPrimitive.Content>
+    </DialogPortal>
+  )
+}
+
+function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="dialog-header"
+      className={cn("flex flex-col gap-2", className)}
+      {...props}
+    />
+  )
+}
+
+function DialogFooter({
+  className,
+  showCloseButton = false,
+  children,
+  ...props
+}: React.ComponentProps<"div"> & {
+  showCloseButton?: boolean
+}) {
+  return (
+    <div
+      data-slot="dialog-footer"
+      className={cn(
+        "-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 sm:flex-row sm:justify-end",
+        className
+      )}
+      {...props}
+    >
+      {children}
+      {showCloseButton && (
+        <DialogPrimitive.Close asChild>
+          <Button variant="outline">Close</Button>
+        </DialogPrimitive.Close>
+      )}
+    </div>
+  )
+}
+
+function DialogTitle({
+  className,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Title>) {
+  return (
+    <DialogPrimitive.Title
+      data-slot="dialog-title"
+      className={cn(
+        "font-heading text-base leading-none font-medium",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function DialogDescription({
+  className,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Description>) {
+  return (
+    <DialogPrimitive.Description
+      data-slot="dialog-description"
+      className={cn(
+        "text-sm text-muted-foreground *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+export {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogOverlay,
+  DialogPortal,
+  DialogTitle,
+  DialogTrigger,
+}
+</file>
+
+<file path="components/ui/input.tsx">
+import * as React from "react"
+
+import { cn } from "@/lib/utils"
+
+function Input({ className, type, ...props }: React.ComponentProps<"input">) {
+  return (
+    <input
+      type={type}
+      data-slot="input"
+      className={cn(
+        "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+export { Input }
+</file>
+
+<file path="components/ui/progress.tsx">
+"use client"
+
+import * as React from "react"
+import { Progress as ProgressPrimitive } from "radix-ui"
+
+import { cn } from "@/lib/utils"
+
+function Progress({
+  className,
+  value,
+  ...props
+}: React.ComponentProps<typeof ProgressPrimitive.Root>) {
+  return (
+    <ProgressPrimitive.Root
+      data-slot="progress"
+      className={cn(
+        "relative flex h-1 w-full items-center overflow-x-hidden rounded-full bg-muted",
+        className
+      )}
+      {...props}
+    >
+      <ProgressPrimitive.Indicator
+        data-slot="progress-indicator"
+        className="size-full flex-1 bg-primary transition-all"
+        style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
+      />
+    </ProgressPrimitive.Root>
+  )
+}
+
+export { Progress }
+</file>
+
+<file path="components/ui/skeleton.tsx">
+import { cn } from "@/lib/utils"
+
+function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="skeleton"
+      className={cn("animate-pulse rounded-md bg-muted", className)}
+      {...props}
+    />
+  )
+}
+
+export { Skeleton }
+</file>
+
+<file path="components/ui/sonner.tsx">
+"use client"
+
+import { useTheme } from "next-themes"
+import { Toaster as Sonner, type ToasterProps } from "sonner"
+import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
+
+const Toaster = ({ ...props }: ToasterProps) => {
+  const { theme = "system" } = useTheme()
+
+  return (
+    <Sonner
+      theme={theme as ToasterProps["theme"]}
+      className="toaster group"
+      icons={{
+        success: (
+          <CircleCheckIcon className="size-4" />
+        ),
+        info: (
+          <InfoIcon className="size-4" />
+        ),
+        warning: (
+          <TriangleAlertIcon className="size-4" />
+        ),
+        error: (
+          <OctagonXIcon className="size-4" />
+        ),
+        loading: (
+          <Loader2Icon className="size-4 animate-spin" />
+        ),
+      }}
+      style={
+        {
+          "--normal-bg": "var(--popover)",
+          "--normal-text": "var(--popover-foreground)",
+          "--normal-border": "var(--border)",
+          "--border-radius": "var(--radius)",
+        } as React.CSSProperties
+      }
+      toastOptions={{
+        classNames: {
+          toast: "cn-toast",
+        },
+      }}
+      {...props}
+    />
+  )
+}
+
+export { Toaster }
+</file>
+
+<file path="components/ui/textarea.tsx">
+import * as React from "react"
+
+import { cn } from "@/lib/utils"
+
+function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
+  return (
+    <textarea
+      className={cn(
+        "flex min-h-[60px] w-full rounded-lg border border-input bg-transparent px-3 py-2 text-base shadow-sm transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm dark:bg-input/30",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+export { Textarea }
+</file>
+
+<file path="components/ui/toast.tsx">
+"use client";
+
+export { Toaster } from "@/components/ui/sonner";
+export { toast } from "sonner";
+</file>
+
+<file path="components/UploadEngine.tsx">
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useDropzone } from "react-dropzone";
+import imageCompression from "browser-image-compression";
+import exifr from "exifr";
+import { ImagePlus, Loader2, UploadCloud, X } from "lucide-react";
+import { createClient } from "@/utils/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { toast } from "@/components/ui/toast";
+
+interface QueuedFile {
+  id: string;
+  file: File;
+  previewUrl: string;
+  status: "pending" | "failed";
+}
+
+interface PhotoMetadata {
+  camera?: string;
+  lens?: string;
+  iso?: number;
+  aperture?: string;
+  shutter_speed?: string;
+  focal_length?: string;
+  width?: number;
+  height?: number;
+  file_size?: number;
+  date_taken?: string;
+}
+
+async function extractMetadata(file: File): Promise<PhotoMetadata> {
+  const metadata: PhotoMetadata = {
+    file_size: file.size,
+  };
+
+  try {
+    const exif = await exifr.parse(file, {
+      pick: [
+        "Make",
+        "Model",
+        "LensModel",
+        "ISO",
+        "FNumber",
+        "ExposureTime",
+        "FocalLength",
+        "ImageWidth",
+        "ImageHeight",
+        "DateTimeOriginal",
+      ],
+    });
+
+    if (exif) {
+      if (exif.Make && exif.Model) {
+        metadata.camera = `${exif.Make} ${exif.Model}`.trim();
+      } else if (exif.Model) {
+        metadata.camera = exif.Model;
+      }
+
+      if (exif.LensModel) {
+        metadata.lens = exif.LensModel;
+      }
+
+      if (exif.ISO) {
+        metadata.iso = exif.ISO;
+      }
+
+      if (exif.FNumber) {
+        metadata.aperture = `f/${exif.FNumber}`;
+      }
+
+      if (exif.ExposureTime) {
+        if (exif.ExposureTime < 1) {
+          metadata.shutter_speed = `1/${Math.round(1 / exif.ExposureTime)}s`;
+        } else {
+          metadata.shutter_speed = `${exif.ExposureTime}s`;
+        }
+      }
+
+      if (exif.FocalLength) {
+        metadata.focal_length = `${Math.round(exif.FocalLength)}mm`;
+      }
+
+      if (exif.ImageWidth) {
+        metadata.width = exif.ImageWidth;
+      }
+
+      if (exif.ImageHeight) {
+        metadata.height = exif.ImageHeight;
+      }
+
+      if (exif.DateTimeOriginal) {
+        metadata.date_taken = exif.DateTimeOriginal.toISOString();
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to extract EXIF:", err);
+  }
+
+  return metadata;
+}
+
+export default function UploadEngine() {
+  const [queuedFiles, setQueuedFiles] = useState<QueuedFile[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [completedCount, setCompletedCount] = useState(0);
+  const [batchTotal, setBatchTotal] = useState(0);
+
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    const mappedFiles = acceptedFiles.map((file) => ({
+      id: `${file.name}-${file.lastModified}-${file.size}-${crypto.randomUUID()}`,
+      file,
+      previewUrl: URL.createObjectURL(file),
+      status: "pending" as const,
+    }));
+
+    setQueuedFiles((prev) => [...prev, ...mappedFiles]);
+  }, []);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      "image/*": [],
+    },
+    multiple: true,
+    disabled: uploading,
+  });
+
+  const progressValue = useMemo(() => {
+    if (batchTotal === 0) return 0;
+    return Math.round((completedCount / batchTotal) * 100);
+  }, [batchTotal, completedCount]);
+
+  const failedCount = useMemo(
+    () => queuedFiles.filter((item) => item.status === "failed").length,
+    [queuedFiles]
+  );
+
+  const clearQueue = useCallback(() => {
+    queuedFiles.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+    setQueuedFiles([]);
+    setCompletedCount(0);
+    setBatchTotal(0);
+  }, [queuedFiles]);
+
+  const removeFile = useCallback((id: string) => {
+    setQueuedFiles((prev) => {
+      const target = prev.find((item) => item.id === id);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter((item) => item.id !== id);
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      queuedFiles.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+    };
+  }, [queuedFiles]);
+
+  const runUpload = useCallback(
+    async (targetStatus: "all" | "failed") => {
+      if (queuedFiles.length === 0 || uploading) return;
+
+      const targets =
+        targetStatus === "all"
+          ? queuedFiles
+          : queuedFiles.filter((item) => item.status === "failed");
+
+      if (targets.length === 0) {
+        toast.error("No failed files to retry.");
+        return;
+      }
+
+      setUploading(true);
+      setCompletedCount(0);
+      setBatchTotal(targets.length);
+
+      try {
+        const supabase = createClient();
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
+
+        if (userError || !user) {
+          throw new Error("You must be signed in to upload photos.");
+        }
+
+        let failures = 0;
+        const succeededIds: string[] = [];
+        let firstFailureMessage = "";
+
+        for (const item of targets) {
+          try {
+            const metadata = await extractMetadata(item.file);
+
+            const compressedFile = await imageCompression(item.file, {
+              maxSizeMB: 1,
+              maxWidthOrHeight: 1920,
+              useWebWorker: true,
+              fileType: "image/jpeg",
+            });
+
+            const filePath = `${user.id}/${crypto.randomUUID()}.jpg`;
+
+            const { error: uploadError } = await supabase.storage
+              .from("photos")
+              .upload(filePath, compressedFile, {
+                contentType: "image/jpeg",
+                upsert: false,
+              });
+
+            if (uploadError) throw uploadError;
+
+            const { error: insertError } = await supabase
+              .from("photos")
+              .insert({
+                file_path: filePath,
+                user_id: user.id,
+                camera: metadata.camera,
+                lens: metadata.lens,
+                iso: metadata.iso,
+                aperture: metadata.aperture,
+                shutter_speed: metadata.shutter_speed,
+                focal_length: metadata.focal_length,
+                width: metadata.width,
+                height: metadata.height,
+                file_size: metadata.file_size,
+                date_taken: metadata.date_taken,
+              });
+
+            if (insertError) throw insertError;
+            succeededIds.push(item.id);
+          } catch (error) {
+            failures += 1;
+            if (!firstFailureMessage) {
+              firstFailureMessage =
+                error instanceof Error ? error.message : "Unknown upload error.";
+            }
+            setQueuedFiles((prev) =>
+              prev.map((queued) =>
+                queued.id === item.id ? { ...queued, status: "failed" } : queued
+              )
+            );
+          } finally {
+            setCompletedCount((prev) => prev + 1);
+          }
+        }
+
+        if (succeededIds.length > 0) {
+          setQueuedFiles((prev) => {
+            const failed = prev.filter((item) => !succeededIds.includes(item.id));
+            prev
+              .filter((item) => succeededIds.includes(item.id))
+              .forEach((item) => URL.revokeObjectURL(item.previewUrl));
+            return failed;
+          });
+        }
+
+        if (failures > 0) {
+          toast.error(
+            `Uploaded with ${failures} failed file(s). ${firstFailureMessage}`
+          );
+          return;
+        }
+
+        toast.success("All photos uploaded successfully.");
+        clearQueue();
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Failed to upload photos.";
+        toast.error(message);
+      } finally {
+        setUploading(false);
+      }
+    },
+    [clearQueue, queuedFiles, uploading]
+  );
+
+  return (
+    <div className="space-y-5">
+      <div
+        {...getRootProps()}
+        className="cursor-pointer rounded-3xl border border-dashed border-rose-300/80 bg-white/70 p-8 text-center transition-colors hover:bg-rose-50/80 dark:border-zinc-700 dark:bg-zinc-900/60 dark:hover:bg-zinc-900"
+      >
+        <input {...getInputProps()} />
+        <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-200">
+          <ImagePlus className="size-6" />
+        </div>
+        <p className="text-sm font-medium">
+          {isDragActive
+            ? "Drop your images here..."
+            : "Drag and drop images, or click to browse"}
+        </p>
+        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+          Images are automatically compressed before upload.
+        </p>
+      </div>
+
+      {queuedFiles.length > 0 && (
+        <>
+          <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+            {queuedFiles.map((item) => (
+              <div
+                key={item.id}
+                className="relative overflow-hidden rounded-xl border border-rose-200/70 bg-white dark:border-zinc-800 dark:bg-zinc-900"
+              >
+                <button
+                  type="button"
+                  onClick={() => removeFile(item.id)}
+                  disabled={uploading}
+                  className="absolute right-1 top-1 z-10 rounded-full bg-black/55 p-1 text-white transition hover:bg-black/70 disabled:opacity-50"
+                  aria-label={`Remove ${item.file.name}`}
+                >
+                  <X className="size-3.5" />
+                </button>
+                {item.status === "failed" && (
+                  <span className="absolute bottom-1 left-1 z-10 rounded-md bg-red-500/90 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                    Failed
+                  </span>
+                )}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={item.previewUrl}
+                  alt={item.file.name}
+                  className="aspect-square w-full object-cover"
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
+              <span>
+                {completedCount}/{batchTotal || queuedFiles.length} completed
+              </span>
+              <span>{progressValue}%</span>
+            </div>
+            <Progress value={progressValue} />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              className="h-10 flex-1"
+              onClick={() => void runUpload("all")}
+              disabled={uploading}
+            >
+              {uploading ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <UploadCloud className="size-4" />
+                  Upload {queuedFiles.length} photo
+                  {queuedFiles.length > 1 ? "s" : ""}
+                </>
+              )}
+            </Button>
+            {failedCount > 0 && (
+              <Button
+                type="button"
+                variant="secondary"
+                className="h-10"
+                onClick={() => void runUpload("failed")}
+                disabled={uploading}
+              >
+                Retry failed ({failedCount})
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10"
+              onClick={clearQueue}
+              disabled={uploading}
+            >
+              Clear
+            </Button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+</file>
+
+<file path="middleware.ts">
+import { NextResponse, type NextRequest } from "next/server";
+import { updateSession } from "@/utils/supabase/middleware";
+
+export async function middleware(request: NextRequest) {
+  const { response, user } = await updateSession(request);
+  const pathname = request.nextUrl.pathname;
+
+  const publicPaths = ["/", "/login", "/signup"];
+  const isPublicPath = publicPaths.includes(pathname);
+
+  if (!user && !isPublicPath) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.searchParams.set("next", pathname);
+    return NextResponse.redirect(url);
+  }
+
+  if (user && (pathname === "/login" || pathname === "/signup")) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/";
+    return NextResponse.redirect(url);
+  }
+
+  return response;
+}
+
+export const config = {
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|login|signup|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
+};
+</file>
+
+<file path="store/useGalleryStore.ts">
+import { create } from "zustand";
+
+export interface SelectedPhoto {
+  id: string;
+  file_path: string;
+}
+
+interface GalleryStoreState {
+  isSelectMode: boolean;
+  selectedPhotos: SelectedPhoto[];
+}
+
+interface GalleryStoreActions {
+  toggleSelectMode: () => void;
+  togglePhotoSelection: (photo: SelectedPhoto) => void;
+  clearSelection: () => void;
+}
+
+type GalleryStore = GalleryStoreState & GalleryStoreActions;
+
+export const useGalleryStore = create<GalleryStore>((set) => ({
+  isSelectMode: false,
+  selectedPhotos: [],
+
+  toggleSelectMode: () =>
+    set((state) => {
+      const nextIsSelectMode = !state.isSelectMode;
+      return {
+        isSelectMode: nextIsSelectMode,
+        selectedPhotos: nextIsSelectMode ? state.selectedPhotos : [],
+      };
+    }),
+
+  togglePhotoSelection: (photo) =>
+    set((state) => {
+      const alreadySelected = state.selectedPhotos.some(
+        (selected) => selected.id === photo.id
+      );
+
+      if (alreadySelected) {
+        return {
+          selectedPhotos: state.selectedPhotos.filter(
+            (selected) => selected.id !== photo.id
+          ),
+        };
+      }
+
+      return {
+        selectedPhotos: [...state.selectedPhotos, photo],
+      };
+    }),
+
+  clearSelection: () => set({ selectedPhotos: [] }),
+}));
+</file>
+
+<file path="supabase/migrations.sql">
+-- Schema migrations for photo metadata and albums
+-- Run these in your Supabase SQL editor
+
+-- 1. Add metadata columns to photos table
+ALTER TABLE photos 
+ADD COLUMN IF NOT EXISTS camera TEXT,
+ADD COLUMN IF NOT EXISTS lens TEXT,
+ADD COLUMN IF NOT EXISTS iso INTEGER,
+ADD COLUMN IF NOT EXISTS aperture TEXT,
+ADD COLUMN IF NOT EXISTS shutter_speed TEXT,
+ADD COLUMN IF NOT EXISTS focal_length TEXT,
+ADD COLUMN IF NOT EXISTS width INTEGER,
+ADD COLUMN IF NOT EXISTS height INTEGER,
+ADD COLUMN IF NOT EXISTS file_size BIGINT,
+ADD COLUMN IF NOT EXISTS date_taken TIMESTAMPTZ;
+
+-- 2. Create albums table
+CREATE TABLE IF NOT EXISTS albums (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  description TEXT,
+  cover_photo_id UUID REFERENCES photos(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 3. Create photo_albums junction table (many-to-many)
+CREATE TABLE IF NOT EXISTS photo_albums (
+  photo_id UUID NOT NULL REFERENCES photos(id) ON DELETE CASCADE,
+  album_id UUID NOT NULL REFERENCES albums(id) ON DELETE CASCADE,
+  added_at TIMESTAMPTZ DEFAULT now(),
+  PRIMARY KEY (photo_id, album_id)
+);
+
+-- 4. Enable Row Level Security
+ALTER TABLE albums ENABLE ROW LEVEL SECURITY;
+ALTER TABLE photo_albums ENABLE ROW LEVEL SECURITY;
+
+-- 5. Create policies for albums
+CREATE POLICY "Users can manage their own albums" ON albums
+  FOR ALL USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can manage their photo-album associations" ON photo_albums
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM albums
+      WHERE albums.id = photo_albums.album_id
+      AND albums.user_id = auth.uid()
+    )
+  );
+
+-- 6. Create indexes for performance
+CREATE INDEX IF NOT EXISTS idx_photos_user_id_date_taken ON photos(user_id, date_taken DESC);
+CREATE INDEX IF NOT EXISTS idx_photos_user_id_created_at ON photos(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_albums_user_id ON albums(user_id);
+CREATE INDEX IF NOT EXISTS idx_photo_albums_album_id ON photo_albums(album_id);
+CREATE INDEX IF NOT EXISTS idx_photo_albums_photo_id ON photo_albums(photo_id);
+
+-- 7. Add updated_at trigger for albums
+CREATE OR REPLACE FUNCTION update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER albums_updated_at
+  BEFORE UPDATE ON albums
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at();
+</file>
+
+<file path="utils/albums.ts">
+import { createClient } from "@/utils/supabase/client";
+
+export interface Album {
+  id: string;
+  user_id: string;
+  name: string;
+  description?: string;
+  cover_photo_id?: string;
+  created_at: string;
+  updated_at: string;
+  photo_count?: number;
+}
+
+export async function getAlbums(): Promise<Album[]> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from("albums")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("updated_at", { ascending: false });
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function createAlbum(name: string, description?: string): Promise<Album> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) throw new Error("Not authenticated");
+
+  const { data, error } = await supabase
+    .from("albums")
+    .insert({
+      user_id: user.id,
+      name,
+      description,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function updateAlbum(id: string, updates: { name?: string; description?: string; cover_photo_id?: string }): Promise<Album> {
+  const supabase = createClient();
+  
+  const { data, error } = await supabase
+    .from("albums")
+    .update(updates)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteAlbum(id: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.from("albums").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function addPhotosToAlbum(photoIds: string[], albumId: string): Promise<void> {
+  const supabase = createClient();
+  
+  const records = photoIds.map((photo_id) => ({ photo_id, album_id: albumId }));
+  
+  const { error } = await supabase
+    .from("photo_albums")
+    .upsert(records, { onConflict: "photo_id,album_id" });
+  
+  if (error) throw error;
+}
+
+export async function removePhotosFromAlbum(photoIds: string[], albumId: string): Promise<void> {
+  const supabase = createClient();
+  
+  const { error } = await supabase
+    .from("photo_albums")
+    .delete()
+    .eq("album_id", albumId)
+    .in("photo_id", photoIds);
+  
+  if (error) throw error;
+}
+
+export async function getAlbumPhotos(albumId: string, limit = 50, offset = 0) {
+  const supabase = createClient();
+  
+  const { data, error } = await supabase
+    .from("photo_albums")
+    .select(`
+      photo:photos(
+        id,
+        file_path,
+        created_at,
+        camera,
+        lens,
+        iso,
+        aperture,
+        shutter_speed,
+        focal_length,
+        width,
+        height,
+        file_size,
+        date_taken
+      )
+    `)
+    .eq("album_id", albumId)
+    .range(offset, offset + limit - 1)
+    .order("added_at", { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []).map((item) => item.photo);
+}
+
+export async function getAlbumById(id: string): Promise<Album | null> {
+  const supabase = createClient();
+  
+  const { data, error } = await supabase
+    .from("albums")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (error) return null;
+  return data;
+}
+</file>
+
+<file path="utils/audit.ts">
+import { createClient } from "@/utils/supabase/server";
+
+export async function logAuditEvent(
+  action: string,
+  details?: Record<string, string>
+) {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return;
+
+    await supabase.from("audit_logs").insert({
+      user_id: user.id,
+      action,
+      details: details ? JSON.stringify(details) : null,
+    });
+  } catch (error) {
+    console.error("Failed to log audit event:", error);
+  }
+}
+
+export async function getAuditLogs(limit = 10) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return [];
+
+  const { data } = await supabase
+    .from("audit_logs")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  return data ?? [];
+}
+</file>
+
+<file path="utils/supabase/client.ts">
+import { createBrowserClient } from "@supabase/ssr";
+
+function getSupabaseEnv() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY;
+
+  if (!url || !key) {
+    throw new Error("Missing Supabase environment variables.");
+  }
+
+  return { url, key };
+}
+
+export function createClient() {
+  const { url, key } = getSupabaseEnv();
+  return createBrowserClient(url, key);
+}
+</file>
+
+<file path="utils/supabase/middleware.ts">
+import { createServerClient } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
+
+function getSupabaseEnv() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY;
+
+  if (!url || !key) {
+    throw new Error("Missing Supabase environment variables.");
+  }
+
+  return { url, key };
+}
+
+export async function updateSession(request: NextRequest) {
+  let response = NextResponse.next({
+    request,
+  });
+
+  const { url, key } = getSupabaseEnv();
+
+  const supabase = createServerClient(url, key, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll();
+      },
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+        response = NextResponse.next({
+          request,
+        });
+        cookiesToSet.forEach(({ name, value, options }) =>
+          response.cookies.set(name, value, options)
+        );
+      },
+    },
+  });
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  return { response, user };
+}
+</file>
+
+<file path="utils/supabase/server.ts">
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
+
+function getSupabaseEnv() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY;
+
+  if (!url || !key) {
+    throw new Error("Missing Supabase environment variables.");
+  }
+
+  return { url, key };
+}
+
+export async function createClient() {
+  const cookieStore = await cookies();
+  const { url, key } = getSupabaseEnv();
+
+  return createServerClient(url, key, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
+      },
+      setAll(cookiesToSet) {
+        try {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options)
+          );
+        } catch {
+          // Server Components may not be able to write cookies.
+        }
+      },
+    },
+  });
+}
+
+export interface PhotoWithUrl {
+  id: string;
+  file_path: string;
+  created_at: string;
+  signedUrl: string | null;
+  camera?: string;
+  lens?: string;
+  iso?: number;
+  aperture?: string;
+  shutter_speed?: string;
+  focal_length?: string;
+  width?: number;
+  height?: number;
+  file_size?: number;
+  date_taken?: string;
+}
+
+const BATCH_SIZE = 10;
+
+export async function getPhotosWithSignedUrls(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  options?: { limit?: number; offset?: number; search?: string }
+) {
+  const { limit = 50, offset = 0, search } = options ?? {};
+
+  let query = supabase
+    .from("photos")
+    .select("id, file_path, created_at, camera, lens, iso, aperture, shutter_speed, focal_length, width, height, file_size, date_taken")
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (search) {
+    query = query.ilike("file_path", `%${search}%`);
+  }
+
+  const { data: rows, error } = await query;
+
+  if (error) throw error;
+  if (!rows || rows.length === 0) return [];
+
+  const batches: string[][] = [];
+  for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+    batches.push(rows.slice(i, i + BATCH_SIZE).map((r) => r.file_path));
+  }
+
+  const results = await Promise.all(
+    batches.map(async (paths) => {
+      const { data: signedUrls } = await supabase.storage
+        .from("photos")
+        .createSignedUrls(paths, 3600);
+      return signedUrls ?? [];
+    })
+  );
+
+  const urlMap = new Map<string, string>();
+  results.flat().forEach((item) => {
+    if (item?.signedUrl && item?.path) {
+      urlMap.set(item.path, item.signedUrl);
+    }
+  });
+
+  return rows.map((photo) => ({
+    ...photo,
+    signedUrl: urlMap.get(photo.file_path) ?? null,
+  })) as PhotoWithUrl[];
+}
+</file>
+
+<file path=".gitignore">
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+</file>
+
+<file path="AGENTS.md">
+<!-- BEGIN:nextjs-agent-rules -->
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+<!-- END:nextjs-agent-rules -->
+</file>
+
+<file path="app/layout.tsx">
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import "./globals.css";
+import BottomNavWrapper from "@/components/BottomNavWrapper";
+import { Toaster } from "@/components/ui/sonner";
+import { ThemeProvider } from "@/components/ThemeProvider";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+export const metadata: Metadata = {
+  title: "Yabsera's Gallery",
+  description: "A private premium photo gallery.",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+    >
+      <body className="min-h-full bg-gradient-to-b from-[#fff1f2] via-white to-white text-foreground dark:from-[#09090b] dark:via-[#09090b] dark:to-[#09090b]">
+        <a
+          href="#main-content"
+          className="absolute left-4 top-4 z-50 -translate-y-[150%] rounded-md bg-primary px-4 py-2 text-primary-foreground transition-transform focus:translate-y-0"
+        >
+          Skip to content
+        </a>
+        <ThemeProvider attribute="class" defaultTheme="system">
+          <div id="main-content" className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 pb-28 pt-4 sm:max-w-xl sm:px-6">
+            {children}
+          </div>
+          <BottomNavWrapper />
+          <Toaster richColors />
+        </ThemeProvider>
+      </body>
+    </html>
+  );
+}
+</file>
+
+<file path="app/page.tsx">
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import { createClient } from "@/utils/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Zap, Shield, Clock } from "lucide-react";
+
+export default function LandingPage() {
+  const router = useRouter();
+  const supabase = createClient();
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function checkUser() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        router.replace("/gallery");
+      } else {
+        setLoading(false);
+      }
+    }
+    checkUser();
+  }, [supabase, router]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="size-8 animate-spin rounded-full border-2 border-rose-500 border-t-transparent" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative flex min-h-screen flex-col overflow-hidden bg-white dark:bg-black">
+      
+      {/* ===== NAVBAR ===== */}
+      <header className="fixed top-0 z-50 w-full border-b border-zinc-200/50 bg-white/70 backdrop-blur dark:border-zinc-800 dark:bg-black/60">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+          <h1 className="text-lg font-semibold tracking-tight">
+            Yabsera
+          </h1>
+
+          <nav className="hidden gap-6 text-sm text-zinc-600 dark:text-zinc-300 md:flex">
+            <button onClick={() => router.push("/about")} className="hover:text-black dark:hover:text-white">About</button>
+            <button onClick={() => router.push("/contact")} className="hover:text-black dark:hover:text-white">Contact</button>
+            <button onClick={() => router.push("/gallery")} className="hover:text-black dark:hover:text-white">Gallery</button>
+          </nav>
+
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              onClick={() => router.push("/login")}
+            >
+              Login
+            </Button>
+            <Button onClick={() => router.push("/signup")}>
+              Sign Up
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      {/* ===== BACKGROUND BLOBS ===== */}
+      <div className="absolute -right-20 -top-20 size-96 rounded-full bg-rose-300/40 blur-3xl dark:bg-rose-500/20" />
+      <div className="absolute -left-10 top-1/2 size-64 rounded-full bg-rose-200/30 blur-3xl dark:bg-rose-500/10" />
+
+      {/* ===== HERO ===== */}
+      <main className="relative z-10 flex flex-1 flex-col items-center justify-center px-4 pt-32">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+          className="text-center"
+        >
+          <h1 className="mb-6 text-5xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 sm:text-6xl">
+            Yabsera&apos;s Gallery
+          </h1>
+
+          <p className="mx-auto mb-10 max-w-xl text-lg text-zinc-600 dark:text-zinc-400">
+            A private, elegant space to store and relive your most meaningful memories — securely and beautifully.
+          </p>
+
+          <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
+            <Button
+              size="lg"
+              onClick={() => router.push("/login")}
+              className="h-12 px-8 text-base shadow-lg"
+            >
+              Enter Gallery
+            </Button>
+
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={() => router.push("/gallery")}
+              className="h-12 px-8 text-base"
+            >
+              View Demo
+            </Button>
+          </div>
+        </motion.div>
+
+        {/* ===== FEATURES ===== */}
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="mt-24 grid max-w-5xl grid-cols-1 gap-10 sm:grid-cols-3"
+        >
+          {[{
+            icon: <Zap className="size-5" />,
+            title: "Auto-Compression",
+            desc: "Smart optimization keeps your photos crisp while saving storage."
+          },{
+            icon: <Shield className="size-5" />,
+            title: "End-to-End Privacy",
+            desc: "Your memories are encrypted and only accessible by you."
+          },{
+            icon: <Clock className="size-5" />,
+            title: "Instant Access",
+            desc: "View your gallery anytime, anywhere, instantly."
+          }].map((item, i) => (
+            <div
+              key={i}
+              className="group rounded-2xl border border-zinc-200 p-6 text-center transition hover:shadow-xl dark:border-zinc-800"
+            >
+              <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400 group-hover:scale-110 transition">
+                {item.icon}
+              </div>
+              <h3 className="mb-2 font-semibold">{item.title}</h3>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                {item.desc}
+              </p>
+            </div>
+          ))}
+        </motion.div>
+      </main>
+
+      {/* ===== FOOTER ===== */}
+      <footer className="border-t border-zinc-200 py-6 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+        © {new Date().getFullYear()} Yabsera Gallery. All rights reserved.
+      </footer>
+    </div>
+  );
+}
+</file>
+
+<file path="CLAUDE.md">
+@AGENTS.md
+</file>
+
+<file path="components.json">
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "radix-nova",
+  "rsc": true,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "app/globals.css",
+    "baseColor": "rose",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "iconLibrary": "lucide",
+  "rtl": false,
+  "aliases": {
+    "components": "@/components",
+    "utils": "@/lib/utils",
+    "ui": "@/components/ui",
+    "lib": "@/lib",
+    "hooks": "@/hooks"
+  },
+  "menuColor": "default",
+  "menuAccent": "subtle",
+  "registries": {}
+}
+</file>
+
+<file path="components/ui/button.tsx">
+import * as React from "react"
+import { cva, type VariantProps } from "class-variance-authority"
+import { Slot } from "radix-ui"
+
+import { cn } from "@/lib/utils"
+
+const buttonVariants = cva(
+  "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
+        outline:
+          "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+        secondary:
+          "bg-secondary text-secondary-foreground hover:bg-secondary/80 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
+        ghost:
+          "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
+        destructive:
+          "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
+        link: "text-primary underline-offset-4 hover:underline",
+      },
+      size: {
+        default:
+          "h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
+        xs: "h-6 gap-1 rounded-[min(var(--radius-md),10px)] px-2 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
+        sm: "h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
+        lg: "h-9 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
+        icon: "size-8",
+        "icon-xs":
+          "size-6 rounded-[min(var(--radius-md),10px)] in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3",
+        "icon-sm":
+          "size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
+        "icon-lg": "size-9",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+)
+
+function Button({
+  className,
+  variant = "default",
+  size = "default",
+  asChild = false,
+  ...props
+}: React.ComponentProps<"button"> &
+  VariantProps<typeof buttonVariants> & {
+    asChild?: boolean
+  }) {
+  const Comp = asChild ? Slot.Root : "button"
+
+  return (
+    <Comp
+      data-slot="button"
+      data-variant={variant}
+      data-size={size}
+      className={cn(buttonVariants({ variant, size, className }))}
+      {...props}
+    />
+  )
+}
+
+export { Button, buttonVariants }
+</file>
+
+<file path="eslint.config.mjs">
+import { defineConfig, globalIgnores } from "eslint/config";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
+
+const eslintConfig = defineConfig([
+  ...nextVitals,
+  ...nextTs,
+  // Override default ignores of eslint-config-next.
+  globalIgnores([
+    // Default ignores of eslint-config-next:
+    ".next/**",
+    "out/**",
+    "build/**",
+    "next-env.d.ts",
+  ]),
+]);
+
+export default eslintConfig;
+</file>
+
+<file path="lib/utils.ts">
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+</file>
+
+<file path="next.config.ts">
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**.supabase.co",
+      },
+    ],
+  },
+};
+
+export default nextConfig;
+</file>
+
+<file path="postcss.config.mjs">
+const config = {
+  plugins: {
+    "@tailwindcss/postcss": {},
+  },
+};
+
+export default config;
+</file>
+
+<file path="public/file.svg">
+<svg fill="none" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M14.5 13.5V5.41a1 1 0 0 0-.3-.7L9.8.29A1 1 0 0 0 9.08 0H1.5v13.5A2.5 2.5 0 0 0 4 16h8a2.5 2.5 0 0 0 2.5-2.5m-1.5 0v-7H8v-5H3v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1M9.5 5V2.12L12.38 5zM5.13 5h-.62v1.25h2.12V5zm-.62 3h7.12v1.25H4.5zm.62 3h-.62v1.25h7.12V11z" clip-rule="evenodd" fill="#666" fill-rule="evenodd"/></svg>
+</file>
+
+<file path="public/globe.svg">
+<svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><g clip-path="url(#a)"><path fill-rule="evenodd" clip-rule="evenodd" d="M10.27 14.1a6.5 6.5 0 0 0 3.67-3.45q-1.24.21-2.7.34-.31 1.83-.97 3.1M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m.48-1.52a7 7 0 0 1-.96 0H7.5a4 4 0 0 1-.84-1.32q-.38-.89-.63-2.08a40 40 0 0 0 3.92 0q-.25 1.2-.63 2.08a4 4 0 0 1-.84 1.31zm2.94-4.76q1.66-.15 2.95-.43a7 7 0 0 0 0-2.58q-1.3-.27-2.95-.43a18 18 0 0 1 0 3.44m-1.27-3.54a17 17 0 0 1 0 3.64 39 39 0 0 1-4.3 0 17 17 0 0 1 0-3.64 39 39 0 0 1 4.3 0m1.1-1.17q1.45.13 2.69.34a6.5 6.5 0 0 0-3.67-3.44q.65 1.26.98 3.1M8.48 1.5l.01.02q.41.37.84 1.31.38.89.63 2.08a40 40 0 0 0-3.92 0q.25-1.2.63-2.08a4 4 0 0 1 .85-1.32 7 7 0 0 1 .96 0m-2.75.4a6.5 6.5 0 0 0-3.67 3.44 29 29 0 0 1 2.7-.34q.31-1.83.97-3.1M4.58 6.28q-1.66.16-2.95.43a7 7 0 0 0 0 2.58q1.3.27 2.95.43a18 18 0 0 1 0-3.44m.17 4.71q-1.45-.12-2.69-.34a6.5 6.5 0 0 0 3.67 3.44q-.65-1.27-.98-3.1" fill="#666"/></g><defs><clipPath id="a"><path fill="#fff" d="M0 0h16v16H0z"/></clipPath></defs></svg>
+</file>
+
+<file path="public/next.svg">
+<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 394 80"><path fill="#000" d="M262 0h68.5v12.7h-27.2v66.6h-13.6V12.7H262V0ZM149 0v12.7H94v20.4h44.3v12.6H94v21h55v12.6H80.5V0h68.7zm34.3 0h-17.8l63.8 79.4h17.9l-32-39.7 32-39.6h-17.9l-23 28.6-23-28.6zm18.3 56.7-9-11-27.1 33.7h17.8l18.3-22.7z"/><path fill="#000" d="M81 79.3 17 0H0v79.3h13.6V17l50.2 62.3H81Zm252.6-.4c-1 0-1.8-.4-2.5-1s-1.1-1.6-1.1-2.6.3-1.8 1-2.5 1.6-1 2.6-1 1.8.3 2.5 1a3.4 3.4 0 0 1 .6 4.3 3.7 3.7 0 0 1-3 1.8zm23.2-33.5h6v23.3c0 2.1-.4 4-1.3 5.5a9.1 9.1 0 0 1-3.8 3.5c-1.6.8-3.5 1.3-5.7 1.3-2 0-3.7-.4-5.3-1s-2.8-1.8-3.7-3.2c-.9-1.3-1.4-3-1.4-5h6c.1.8.3 1.6.7 2.2s1 1.2 1.6 1.5c.7.4 1.5.5 2.4.5 1 0 1.8-.2 2.4-.6a4 4 0 0 0 1.6-1.8c.3-.8.5-1.8.5-3V45.5zm30.9 9.1a4.4 4.4 0 0 0-2-3.3 7.5 7.5 0 0 0-4.3-1.1c-1.3 0-2.4.2-3.3.5-.9.4-1.6 1-2 1.6a3.5 3.5 0 0 0-.3 4c.3.5.7.9 1.3 1.2l1.8 1 2 .5 3.2.8c1.3.3 2.5.7 3.7 1.2a13 13 0 0 1 3.2 1.8 8.1 8.1 0 0 1 3 6.5c0 2-.5 3.7-1.5 5.1a10 10 0 0 1-4.4 3.5c-1.8.8-4.1 1.2-6.8 1.2-2.6 0-4.9-.4-6.8-1.2-2-.8-3.4-2-4.5-3.5a10 10 0 0 1-1.7-5.6h6a5 5 0 0 0 3.5 4.6c1 .4 2.2.6 3.4.6 1.3 0 2.5-.2 3.5-.6 1-.4 1.8-1 2.4-1.7a4 4 0 0 0 .8-2.4c0-.9-.2-1.6-.7-2.2a11 11 0 0 0-2.1-1.4l-3.2-1-3.8-1c-2.8-.7-5-1.7-6.6-3.2a7.2 7.2 0 0 1-2.4-5.7 8 8 0 0 1 1.7-5 10 10 0 0 1 4.3-3.5c2-.8 4-1.2 6.4-1.2 2.3 0 4.4.4 6.2 1.2 1.8.8 3.2 2 4.3 3.4 1 1.4 1.5 3 1.5 5h-5.8z"/></svg>
+</file>
+
+<file path="public/vercel.svg">
+<svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1155 1000"><path d="m577.3 0 577.4 1000H0z" fill="#fff"/></svg>
+</file>
+
+<file path="public/window.svg">
+<svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill-rule="evenodd" clip-rule="evenodd" d="M1.5 2.5h13v10a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1zM0 1h16v11.5a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 0 12.5zm3.75 4.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5M7 4.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0m1.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5" fill="#666"/></svg>
+</file>
+
+<file path="README.md">
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+
+## Getting Started
+
+First, run the development server:
+
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+
+## Learn More
+
+To learn more about Next.js, take a look at the following resources:
+
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+</file>
+
+<file path="tsconfig.json">
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts"
+  ],
+  "exclude": ["node_modules"]
+}
+</file>
+
+<file path="app/globals.css">
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.66 0.19 14);
+  --primary-foreground: oklch(0.98 0.02 20);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.96 0.03 12);
+  --accent-foreground: oklch(0.38 0.1 12);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.69 0.12 14);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.045 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.08 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.08 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.75 0.16 14);
+  --primary-foreground: oklch(0.19 0.02 20);
+  --secondary: oklch(0.15 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.15 0 0);
+  --muted-foreground: oklch(0.6 0 0);
+  --accent: oklch(0.25 0.04 14);
+  --accent-foreground: oklch(0.97 0.02 20);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.55 0.1 14);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.08 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.15 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.4 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply tracking-tight;
+  }
+}
+</file>
+
+<file path="package.json">
+{
+  "name": "gallery",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.10.0",
+    "@supabase/supabase-js": "^2.102.1",
+    "browser-image-compression": "^2.0.2",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "exifr": "^7.1.3",
+    "framer-motion": "^12.38.0",
+    "lucide-react": "^1.7.0",
+    "next": "16.2.2",
+    "next-themes": "^0.4.6",
+    "radix-ui": "^1.4.3",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "react-dropzone": "^15.0.0",
+    "shadcn": "^4.2.0",
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.5.0",
+    "tw-animate-css": "^1.4.0",
+    "use-debounce": "^10.1.1",
+    "yet-another-react-lightbox": "^3.30.1",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.2",
+    "opencode-windows-x64": "^1.3.17",
+    "opencode-windows-x64-baseline": "^1.3.17",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
+</file>
+
+</files>
