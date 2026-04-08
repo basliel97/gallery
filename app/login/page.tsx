@@ -54,7 +54,7 @@ function LoginForm() {
         className="w-full max-w-sm rounded-3xl border border-white/40 bg-white/60 p-8 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/60"
       >
         <div className="mb-8 space-y-2 text-center">
-          <p className="text-sm font-medium text-rose-500 dark:text-rose-300">Yabsera&apos;s Gallery</p>
+          <p className="text-sm font-medium text-rose-500 dark:text-rose-300">Yeabsira&apos;s Gallery</p>
           <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
             Welcome back
           </h1>
