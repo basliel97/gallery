@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { createClient } from "@/utils/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { Logo } from "./Logo";
 
 export function Header() {
   const pathname = usePathname();
@@ -51,12 +52,9 @@ const triggerLogout = () => setIsLogoutConfirmOpen(true);
     <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 bg-background/60 backdrop-blur-md">
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 group">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-transform group-hover:rotate-6">
-            <Camera className="h-4 w-4" />
-          </div>
-          <span className="font-heading text-lg font-bold tracking-tight">Yeabsira</span>
-        </Link>
+        <Link href="/" className="flex items-center">
+  <Logo />
+</Link>
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center gap-6">

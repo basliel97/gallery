@@ -2,6 +2,7 @@
 
 import { Camera, CircleFadingPlus, Heart, Mail } from "lucide-react";
 import Link from "next/link";
+import { Logo } from "./Logo";
 
 export function PublicFooter() {
   const currentYear = new Date().getFullYear();
@@ -13,12 +14,9 @@ export function PublicFooter() {
           
           {/* Brand Section */}
           <div className="col-span-1 md:col-span-2 space-y-4">
-            <Link href="/" className="flex items-center gap-2 group w-fit">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-transform group-hover:rotate-6">
-                <Camera className="h-4 w-4" />
-              </div>
-              <span className="font-heading text-xl font-bold tracking-tight">Yeabsira</span>
-            </Link>
+           <div className="col-span-1 md:col-span-2 space-y-4">
+  <Logo /> {/* Clean and consistent */}
+</div>
             <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
               A private, elegant space designed to preserve and celebrate your most meaningful moments in high definition.
             </p>
